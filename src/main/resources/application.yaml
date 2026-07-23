@@ -3,13 +3,18 @@ spring:
     name: stock-market-service
   datasource:
     url: jdbc:postgresql://localhost:5432/stock_market_dev
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: none
     show-sql: false
+
+jwt:
+  # HS256 서명에 사용할 비밀키 — 반드시 32자 이상의 랜덤 문자열로 설정
+  secret: ${JWT_SECRET}
+  expiration-ms: 1800000  # 30분
 
 management:
   endpoints:
