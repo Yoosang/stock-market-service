@@ -11,10 +11,16 @@ spring:
       ddl-auto: none
     show-sql: false
 
-jwt:
-  # HS256 서명에 사용할 비밀키 — 반드시 32자 이상의 랜덤 문자열로 설정
-  secret: ${JWT_SECRET}
-  expiration-ms: 1800000  # 30분
+app:
+  jwt:
+    # HS256 서명에 사용할 비밀키 — 반드시 32자 이상의 랜덤 문자열로 설정
+    secret: ${JWT_SECRET}
+    expiration-ms: 1800000  # 30분
+
+  news:
+    naver:
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
 
 management:
   endpoints:
