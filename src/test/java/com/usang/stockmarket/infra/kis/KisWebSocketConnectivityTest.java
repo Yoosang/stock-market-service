@@ -3,6 +3,7 @@ package com.usang.stockmarket.infra.kis;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
 import com.usang.stockmarket.domain.watchlist.WatchlistRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
@@ -15,7 +16,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -46,12 +51,18 @@ class KisWebSocketConnectivityTest {
         when(fakeWatchlistRepository.findAll())
                 .thenReturn(List.of(new Watchlist(1L, "005930")));
 
-        KisWebSocketClient client = new KisWebSocketClient(authClient, config, new ObjectMapper(), fakeWatchlistRepository);
+        SimpMessagingTemplate fakeMessagingTemplate = mock(SimpMessagingTemplate.class);
+
+        KisWebSocketClient client = new KisWebSocketClient(
+                authClient, config, new ObjectMapper(), fakeWatchlistRepository, fakeMessagingTemplate);
         client.connect();
 
         // client.connect()는 비동기로 연결되므로, 콘솔에 SUBSCRIBE SUCCESS/체결가 로그가
         // 찍히는 걸 눈으로 확인할 시간을 준다.
         TimeUnit.SECONDS.sleep(15);
+
+        // 실제 체결 데이터가 왔다면 /topic/quotes/005930으로 broadcast 시도했어야 한다.
+        verify(fakeMessagingTemplate, atLeastOnce()).convertAndSend(anyString(), any(Object.class));
     }
 
     private Map<String, String> readKeyEnv() throws IOException {

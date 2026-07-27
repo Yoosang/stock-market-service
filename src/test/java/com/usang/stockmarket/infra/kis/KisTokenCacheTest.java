@@ -1,6 +1,7 @@
 package com.usang.stockmarket.infra.kis;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -15,6 +16,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KisTokenCacheTest {
 
     private static final Path CACHE_FILE = Path.of(".kis-token-cache.json");
+
+    @BeforeEach
+    void setUp() throws IOException {
+        // 실제 앱 실행이나 다른 테스트가 같은 경로에 캐시 파일을 남겨둘 수 있어 시작 전에도 정리한다.
+        Files.deleteIfExists(CACHE_FILE);
+    }
 
     @AfterEach
     void cleanup() throws IOException {

@@ -1,10 +1,12 @@
 package com.usang.stockmarket.infra.kis;
 
+import com.usang.stockmarket.application.quote.QuoteUpdate;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
 import com.usang.stockmarket.domain.watchlist.WatchlistRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -24,11 +26,13 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class KisWebSocketClient extends TextWebSocketHandler {
     private static final long RECONNECT_DELAY_SECONDS = 5;
+    private static final String QUOTE_DESTINATION_PREFIX = "/topic/quotes/";
 
     private final KisAuthClient kisAuthClient;
     private final KisConfiguration kisConfiguration;
     private final ObjectMapper objectMapper;
     private final WatchlistRepository watchlistRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
     private WebSocketSession kisWebSocketSession;
 
@@ -83,7 +87,6 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     }
 
     private void handleTickData(String payload) {
-        //TODO frontend 보내주는 로직 추가 예정 — 지금은 구조 확인 차원에서 tr_id/건수/첫 종목코드만 로그
         String[] parts = payload.split("\\|", 4);
         if (parts.length < 4) {
             log.warn("Unexpected KIS tick payload: {}", payload);
@@ -91,8 +94,13 @@ public class KisWebSocketClient extends TextWebSocketHandler {
         }
         String trId = parts[1];
         String count = parts[2];
-        String firstSymbol = parts[3].split("\\^")[0];
-        log.info("KIS tick data: trId={}, count={}, firstSymbol={}", trId, count, firstSymbol);
+        String[] fields = parts[3].split("\\^");
+        String symbol = fields[0];
+        String time = fields.length > 1 ? fields[1] : null;
+        String price = fields.length > 2 ? fields[2] : null;
+
+        log.info("KIS tick data: trId={}, count={}, symbol={}, price={}", trId, count, symbol, price);
+        messagingTemplate.convertAndSend(QUOTE_DESTINATION_PREFIX + symbol, new QuoteUpdate(symbol, price, time));
     }
 
     @Override
