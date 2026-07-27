@@ -1,5 +1,6 @@
 package com.usang.stockmarket.infra.kis;
 
+import com.usang.stockmarket.application.quote.QuoteCache;
 import com.usang.stockmarket.application.quote.QuoteUpdate;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
 import com.usang.stockmarket.domain.watchlist.WatchlistRepository;
@@ -33,6 +34,7 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final WatchlistRepository watchlistRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final QuoteCache quoteCache;
     private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
     private WebSocketSession kisWebSocketSession;
 
@@ -99,8 +101,10 @@ public class KisWebSocketClient extends TextWebSocketHandler {
         String time = fields.length > 1 ? fields[1] : null;
         String price = fields.length > 2 ? fields[2] : null;
 
-        log.info("KIS tick data: trId={}, count={}, symbol={}, price={}", trId, count, symbol, price);
-        messagingTemplate.convertAndSend(QUOTE_DESTINATION_PREFIX + symbol, new QuoteUpdate(symbol, price, time));
+        //log.info("KIS tick data: trId={}, count={}, symbol={}, price={}", trId, count, symbol, price);
+        QuoteUpdate quote = new QuoteUpdate(symbol, price, time);
+        messagingTemplate.convertAndSend(QUOTE_DESTINATION_PREFIX + symbol, quote);
+        quoteCache.save(quote);
     }
 
     @Override
