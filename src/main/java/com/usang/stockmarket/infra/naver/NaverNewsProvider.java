@@ -3,7 +3,8 @@ package com.usang.stockmarket.infra.naver;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.usang.stockmarket.application.news.NewsItem;
 import com.usang.stockmarket.application.news.NewsProvider;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -14,19 +15,18 @@ import org.springframework.web.util.HtmlUtils;
 import java.util.List;
 
 @Component
+@Slf4j
 public class NaverNewsProvider implements NewsProvider {
 
     private final RestClient restClient;
-    private final String clientId;
-    private final String clientSecret;
+    private final NaverNewsConfiguration naverNewsConfiguration;
 
     public NaverNewsProvider(
             RestClient.Builder restClientBuilder,
-            @Value("${app.news.naver.client-id}") String clientId,
-            @Value("${app.news.naver.client-secret}") String clientSecret) {
-        this.restClient = restClientBuilder.baseUrl("https://openapi.naver.com").build();
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
+            NaverNewsConfiguration naverNewsConfiguration
+            ) {
+        this.restClient = restClientBuilder.baseUrl(naverNewsConfiguration.uri()).build();
+        this.naverNewsConfiguration = naverNewsConfiguration;
     }
 
     @Override
@@ -35,16 +35,17 @@ public class NaverNewsProvider implements NewsProvider {
         try {
             response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/v1/search/news.json")
+                            .path(naverNewsConfiguration.path())
                             .queryParam("query", keyword)
                             .queryParam("display", display)
                             .queryParam("sort", sort)
                             .build())
-                    .header("X-Naver-Client-Id", clientId)
-                    .header("X-Naver-Client-Secret", clientSecret)
+                    .header("X-Naver-Client-Id", naverNewsConfiguration.clientId())
+                    .header("X-Naver-Client-Secret", naverNewsConfiguration.clientSecret())
                     .retrieve()
                     .body(NaverNewsApiResponse.class);
         } catch (RestClientException e) {
+            log.error("Failed to fetch naver new: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "뉴스 조회 중 오류가 발생했습니다.", e);
         }
 
@@ -72,3 +73,6 @@ record NaverNewsApiResponse(List<NaverNewsItem> items) {
 
 record NaverNewsItem(String title, String originallink, String link, String description, String pubDate) {
 }
+
+@ConfigurationProperties(prefix = "app.news.naver")
+record NaverNewsConfiguration(String clientId, String clientSecret, String uri, String path) {}

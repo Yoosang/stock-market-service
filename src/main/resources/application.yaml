@@ -16,11 +16,18 @@ app:
     # HS256 서명에 사용할 비밀키 — 반드시 32자 이상의 랜덤 문자열로 설정
     secret: ${JWT_SECRET}
     expiration-ms: 1800000  # 30분
-
   news:
     naver:
       client-id: ${NAVER_CLIENT_ID}
       client-secret: ${NAVER_CLIENT_SECRET}
+      uri: https://openapi.naver.com
+      path: /v1/search/news.json
+  kis:
+    app-key: ${KIS_APP_KEY}
+    app-secret: ${KIS_APP_SECRET}
+    rest-uri: https://openapi.koreainvestment.com:9443
+    rest-path: /oauth2/Approval
+    ws-uri: ws://ops.koreainvestment.com:21000
 
 management:
   endpoints:
