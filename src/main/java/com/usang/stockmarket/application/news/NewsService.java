@@ -16,10 +16,11 @@ public class NewsService {
     private final NewsProvider newsProvider;
     private final StockRepository stockRepository;
 
-    public List<NewsItem> getNewsBySymbol(String symbol, int display, String sort) {
+    public NewsResult getNewsBySymbol(String symbol, int display, String sort) {
         Stock stock = stockRepository.findBySymbol(symbol)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 종목입니다."));
 
-        return newsProvider.fetchNews(stock.getName(), display, sort);
+        List<NewsItem> items = newsProvider.fetchNews(stock.getName(), display, sort);
+        return new NewsResult(stock.getSymbol(), stock.getName(), items);
     }
 }
