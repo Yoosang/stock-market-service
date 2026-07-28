@@ -100,9 +100,11 @@ public class KisWebSocketClient extends TextWebSocketHandler {
         String symbol = fields[0];
         String time = fields.length > 1 ? fields[1] : null;
         String price = fields.length > 2 ? fields[2] : null;
+        // KIS 체결 데이터 필드 순서: [0]종목코드 [1]체결시간 [2]현재가 [3]대비부호 [4]전일대비 [5]전일대비율
+        String changeRate = fields.length > 5 ? fields[5] : null;
 
         //log.info("KIS tick data: trId={}, count={}, symbol={}, price={}", trId, count, symbol, price);
-        QuoteUpdate quote = new QuoteUpdate(symbol, price, time);
+        QuoteUpdate quote = new QuoteUpdate(symbol, price, time, changeRate);
         messagingTemplate.convertAndSend(QUOTE_DESTINATION_PREFIX + symbol, quote);
         quoteCache.save(quote);
     }

@@ -28,7 +28,8 @@ public class WatchlistController {
                     QuoteUpdate quote = quoteCache.load(stock.getSymbol()).orElse(null);
                     String price = quote != null ? quote.price() : null;
                     String time = quote != null ? quote.time() : null;
-                    return new WatchlistItemResponse(stock.getSymbol(), stock.getName(), stock.getMarket(), price, time);
+                    String changeRate = quote != null ? quote.changeRate() : null;
+                    return new WatchlistItemResponse(stock.getSymbol(), stock.getName(), stock.getMarket(), price, time, changeRate);
                 })
                 .toList();
     }
@@ -54,5 +55,5 @@ record WatchlistParam(String stockSymbol) {
     }
 }
 
-record WatchlistItemResponse(String symbol, String name, String market, String price, String time) {
+record WatchlistItemResponse(String symbol, String name, String market, String price, String time, String changeRate) {
 }
