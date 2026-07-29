@@ -20,7 +20,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String token = jwtAuthenticationResolver.extractBearerToken(request.getHeader("Authorization"));
+        String token = jwtAuthenticationResolver.extractTokenFromCookies(request.getCookies());
         Authentication authentication = jwtAuthenticationResolver.resolveAuthentication(token);
 
         if (authentication != null) {

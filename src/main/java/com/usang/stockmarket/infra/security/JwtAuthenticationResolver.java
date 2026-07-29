@@ -1,30 +1,38 @@
 package com.usang.stockmarket.infra.security;
 
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
- * "Bearer 토큰 파싱" + "JWT 검증 후 Authentication 생성"을 HTTP 필터와 STOMP 인터셉터가
- * 공통으로 쓰기 위한 헬퍼. 각 진입점(HttpServletRequest, STOMP native header)에서 헤더 값을
- * 꺼내는 방식만 다르고, 그 이후 처리는 동일해서 여기로 모아둔다.
+ * JWT를 httpOnly 쿠키로 주고받기 위한 공통 헬퍼. 쿠키 추출/발급과 "JWT 검증 후 Authentication
+ * 생성"을 HTTP 필터, STOMP 핸드셰이크 인터셉터, 컨트롤러가 공통으로 쓰기 위해 모아둔다.
  */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationResolver {
 
+    public static final String COOKIE_NAME = "ACCESS_TOKEN";
+
     private final JwtTokenProvider jwtTokenProvider;
 
-    public String extractBearerToken(String authorizationHeader) {
-        if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
+    public String extractTokenFromCookies(Cookie[] cookies) {
+        if (cookies == null) {
             return null;
         }
-        return authorizationHeader.substring(7);
+        for (Cookie cookie : cookies) {
+            if (COOKIE_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     public Authentication resolveAuthentication(String token) {
@@ -33,5 +41,25 @@ public class JwtAuthenticationResolver {
         }
         Long userId = Long.valueOf(jwtTokenProvider.getUserId(token));
         return new UsernamePasswordAuthenticationToken(userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+    }
+
+    public ResponseCookie buildAuthCookie(String token) {
+        return ResponseCookie.from(COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(false) // 로컬 개발(http)용. 배포 시 HTTPS 적용하면 true로 전환
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(Duration.ofMillis(jwtTokenProvider.getExpirationMs()))
+                .build();
+    }
+
+    public ResponseCookie buildLogoutCookie() {
+        return ResponseCookie.from(COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(0)
+                .build();
     }
 }
