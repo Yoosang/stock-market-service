@@ -3,6 +3,7 @@ package com.usang.stockmarket.global.config;
 import com.usang.stockmarket.infra.security.JwtHandshakeInterceptor;
 import com.usang.stockmarket.infra.security.JwtHandshakeUserHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -17,10 +18,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final JwtHandshakeUserHandler jwtHandshakeUserHandler;
 
+    @Value("${app.cors.allowed-origin}")
+    private String corsAllowedOrigin;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:3000")
+                .setAllowedOrigins(corsAllowedOrigin)
                 .setHandshakeHandler(jwtHandshakeUserHandler)
                 .addInterceptors(jwtHandshakeInterceptor);
     }

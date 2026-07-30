@@ -2,6 +2,7 @@ package com.usang.stockmarket.infra.security;
 
 import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -22,6 +23,12 @@ public class JwtAuthenticationResolver {
     public static final String COOKIE_NAME = "ACCESS_TOKEN";
 
     private final JwtTokenProvider jwtTokenProvider;
+
+    @Value("${app.jwt.cookie-secure}")
+    private boolean cookieSecure;
+
+    @Value("${app.jwt.cookie-same-site}")
+    private String cookieSameSite;
 
     public String extractTokenFromCookies(Cookie[] cookies) {
         if (cookies == null) {
@@ -46,8 +53,8 @@ public class JwtAuthenticationResolver {
     public ResponseCookie buildAuthCookie(String token) {
         return ResponseCookie.from(COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(false) // 로컬 개발(http)용. 배포 시 HTTPS 적용하면 true로 전환
-                .sameSite("Lax")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(Duration.ofMillis(jwtTokenProvider.getExpirationMs()))
                 .build();
@@ -56,8 +63,8 @@ public class JwtAuthenticationResolver {
     public ResponseCookie buildLogoutCookie() {
         return ResponseCookie.from(COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(0)
                 .build();

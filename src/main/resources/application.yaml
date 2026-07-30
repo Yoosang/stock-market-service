@@ -2,7 +2,7 @@ spring:
   application:
     name: stock-market-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/stock_market_dev
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/stock_market_dev
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -16,10 +16,16 @@ spring:
       port: ${REDIS_PORT:6379}
 
 app:
+  cors:
+    # 로컬 개발 기본값은 프론트 dev 서버(localhost:3000). 배포 시 CORS_ALLOWED_ORIGIN으로 재정의.
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
   jwt:
     # HS256 서명에 사용할 비밀키 — 반드시 32자 이상의 랜덤 문자열로 설정
     secret: ${JWT_SECRET}
     expiration-ms: 1800000  # 30분
+    # 로컬(http, same-site)은 Secure=false/SameSite=Lax, 배포(https, cross-site)는 true/None
+    cookie-secure: ${COOKIE_SECURE:false}
+    cookie-same-site: ${COOKIE_SAME_SITE:Lax}
   news:
     naver:
       client-id: ${NAVER_CLIENT_ID}

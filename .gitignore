@@ -60,4 +60,5 @@ out/
 /.nb-gradle/
 
 key.env
+.env.prod
 .kis-token-cache.json
