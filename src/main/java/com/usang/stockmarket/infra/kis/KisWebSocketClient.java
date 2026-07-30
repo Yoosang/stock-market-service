@@ -18,6 +18,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +38,9 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     private final SimpMessagingTemplate messagingTemplate;
     private final QuoteCache quoteCache;
     private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
+    // KIS는 연결당 구독 가능 종목 수에 한도가 있어서, 이미 구독한 종목은 재구독하지 않고
+    // 관심종목에서 완전히 빠진 종목만 실제로 unsubscribe 하기 위해 현재 구독 상태를 추적한다.
+    private final Set<String> subscribedSymbols = ConcurrentHashMap.newKeySet();
     private WebSocketSession kisWebSocketSession;
 
     @PostConstruct
@@ -47,6 +52,7 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         session.setTextMessageSizeLimit(1024 * 1024); // KIS가 여러 체결가를 한 프레임에 묶어 보내는 경우가 있어 기본 버퍼(8KB)로는 부족함
         kisWebSocketSession = session;
+        subscribedSymbols.clear(); // 새 연결은 이전 세션의 구독을 이어받지 않으므로 추적 상태도 초기화한다.
         log.info("KIS WebSocket connected.");
 
         List<String> stocklist = watchlistRepository
@@ -116,11 +122,15 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     }
 
     public void subscribe(String stockCode) {
-        sendMessage(stockCode, "1");
+        if (subscribedSymbols.add(stockCode)) {
+            sendMessage(stockCode, "1");
+        }
     }
 
     public void unsubscribe(String stockCode) {
-        sendMessage(stockCode, "2");
+        if (subscribedSymbols.remove(stockCode)) {
+            sendMessage(stockCode, "2");
+        }
     }
 
     private void sendMessage(String stockCode, String trType) {

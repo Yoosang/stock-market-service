@@ -4,6 +4,7 @@ import com.usang.stockmarket.domain.stock.Stock;
 import com.usang.stockmarket.domain.stock.StockRepository;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
 import com.usang.stockmarket.domain.watchlist.WatchlistRepository;
+import com.usang.stockmarket.infra.kis.KisWebSocketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,8 +16,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class WatchlistService {
+    private static final int MAX_WATCHLIST_SIZE = 10;
+
     private final WatchlistRepository watchlistRepository;
     private final StockRepository stockRepository;
+    private final KisWebSocketClient kisWebSocketClient;
 
     public List<Stock> getWatchlistByUserId(Long userId) {
         return watchlistRepository.findByUserId(userId).stream()
@@ -33,6 +37,10 @@ public class WatchlistService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 관심종목에 추가된 종목입니다.");
         }
 
+        if (watchlistRepository.countByUserId(userId) >= MAX_WATCHLIST_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "관심종목은 최대 " + MAX_WATCHLIST_SIZE + "개까지 등록할 수 있습니다.");
+        }
+
         watchlistRepository.save(new Watchlist(userId, stockSymbol));
     }
 
@@ -42,5 +50,9 @@ public class WatchlistService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "관심종목에 없는 종목입니다.");
         }
         watchlistRepository.deleteByUserIdAndStockSymbol(userId, stockSymbol);
+
+        if (!watchlistRepository.existsByStockSymbol(stockSymbol)) {
+            kisWebSocketClient.unsubscribe(stockSymbol);
+        }
     }
 }

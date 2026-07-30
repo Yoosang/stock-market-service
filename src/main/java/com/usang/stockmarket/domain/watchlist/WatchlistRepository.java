@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface WatchlistRepository extends JpaRepository<Watchlist, Long> {
     List<Watchlist> findByUserId(Long userId);
+    long countByUserId(Long userId);
     boolean existsByUserIdAndStockSymbol(Long userId, String stockSymbol);
+    boolean existsByStockSymbol(String stockSymbol);
     void deleteByUserIdAndStockSymbol(Long userId, String stockSymbol);
 }
