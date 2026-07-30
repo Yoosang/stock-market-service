@@ -30,8 +30,12 @@ public class WatchlistService {
     }
 
     public void addWatchlist(Long userId, String stockSymbol) {
-        stockRepository.findBySymbol(stockSymbol)
+        Stock stock = stockRepository.findBySymbol(stockSymbol)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 종목입니다."));
+
+        if (!stock.isActive()) {
+            throw new ResponseStatusException(HttpStatus.GONE, "상장폐지된 종목입니다.");
+        }
 
         if (watchlistRepository.existsByUserIdAndStockSymbol(userId, stockSymbol)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 관심종목에 추가된 종목입니다.");

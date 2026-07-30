@@ -5,9 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
+@NoArgsConstructor
 @Table(name="stocks")
 public class Stock {
     @Id
@@ -16,4 +18,17 @@ public class Stock {
     private String name;
     @Column(nullable = false)
     private String market;
+    @Column(nullable = false)
+    private boolean active = true;
+
+    public Stock(String symbol, String name, String market) {
+        this.symbol = symbol;
+        this.name = name;
+        this.market = market;
+        this.active = true;
+    }
+
+    public void markInactive() {
+        this.active = false;
+    }
 }
