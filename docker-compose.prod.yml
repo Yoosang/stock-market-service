@@ -27,6 +27,9 @@ services:
     environment:
       DB_HOST: db
       REDIS_HOST: redis
+      LOGGING_FILE_NAME: /app/logs/app.log
+    volumes:
+      - backend-logs:/app/logs
     mem_limit: 450m
     restart: unless-stopped
 
@@ -49,3 +52,4 @@ volumes:
   redisdata:
   certbot-etc:
   certbot-webroot:
+  backend-logs:
