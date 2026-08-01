@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16
@@ -9,6 +15,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     mem_limit: 200m
     restart: unless-stopped
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
@@ -16,6 +23,7 @@ services:
       - redisdata:/data
     mem_limit: 100m
     restart: unless-stopped
+    logging: *default-logging
 
   backend:
     build: .
@@ -32,6 +40,7 @@ services:
       - backend-logs:/app/logs
     mem_limit: 450m
     restart: unless-stopped
+    logging: *default-logging
 
   nginx:
     image: nginx:alpine
@@ -46,6 +55,7 @@ services:
       - certbot-webroot:/var/www/certbot
     mem_limit: 50m
     restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   pgdata:
