@@ -1,15 +1,20 @@
 package com.usang.stockmarket.api.stock;
 
 import com.usang.stockmarket.api.dto.ApiResponse;
+import com.usang.stockmarket.application.quote.CandleService;
 import com.usang.stockmarket.application.stock.StockService;
 import com.usang.stockmarket.application.stock.StockSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @RestController
@@ -19,6 +24,7 @@ public class StockController {
 
     private final StockService stockService;
     private final StockSyncService stockSyncService;
+    private final CandleService candleService;
 
     @GetMapping
     public List<StockSearchResult> search(@RequestParam String query) {
@@ -32,7 +38,19 @@ public class StockController {
         stockSyncService.syncAll();
         return ApiResponse.success("종목 마스터 동기화가 완료되었습니다.");
     }
+
+    @GetMapping("/{symbol}/candles")
+    public List<CandleResponse> getCandles(@PathVariable String symbol, @RequestParam LocalDate date) {
+        return candleService.getCandles(symbol, date).stream()
+                .map(c -> new CandleResponse(
+                        LocalDateTime.of(c.getTradeDate(), c.getBucketTime()).toEpochSecond(ZoneOffset.UTC),
+                        c.getOpenPrice(), c.getHighPrice(), c.getLowPrice(), c.getClosePrice()))
+                .toList();
+    }
 }
 
 record StockSearchResult(String symbol, String name, String market) {
+}
+
+record CandleResponse(long time, int open, int high, int low, int close) {
 }

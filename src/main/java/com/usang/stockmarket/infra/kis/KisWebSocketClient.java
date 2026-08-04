@@ -1,5 +1,6 @@
 package com.usang.stockmarket.infra.kis;
 
+import com.usang.stockmarket.application.quote.CandleService;
 import com.usang.stockmarket.application.quote.QuoteCache;
 import com.usang.stockmarket.application.quote.QuoteUpdate;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
@@ -37,6 +38,7 @@ public class KisWebSocketClient extends TextWebSocketHandler {
     private final WatchlistRepository watchlistRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final QuoteCache quoteCache;
+    private final CandleService candleService;
     private final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor();
     // KIS는 연결당 구독 가능 종목 수에 한도가 있어서, 이미 구독한 종목은 재구독하지 않고
     // 관심종목에서 완전히 빠진 종목만 실제로 unsubscribe 하기 위해 현재 구독 상태를 추적한다.
@@ -113,6 +115,7 @@ public class KisWebSocketClient extends TextWebSocketHandler {
         QuoteUpdate quote = new QuoteUpdate(symbol, price, time, changeRate);
         messagingTemplate.convertAndSend(QUOTE_DESTINATION_PREFIX + symbol, quote);
         quoteCache.save(quote);
+        candleService.recordTick(symbol, price, time);
     }
 
     @Override
