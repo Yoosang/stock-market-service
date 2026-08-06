@@ -4,6 +4,7 @@ import com.usang.stockmarket.api.dto.ApiResponse;
 import com.usang.stockmarket.application.quote.QuoteCache;
 import com.usang.stockmarket.application.quote.QuoteUpdate;
 import com.usang.stockmarket.application.watchlist.WatchlistService;
+import com.usang.stockmarket.domain.watchlist.Watchlist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -45,6 +47,23 @@ public class WatchlistController {
         watchlistService.removeWatchlist(Long.parseLong(auth.getPrincipal().toString()), stockSymbol);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("종목이 삭제 되었습니다."));
     }
+
+    @GetMapping("/{stockSymbol}/alert")
+    public AlertSettingsResponse getAlertSettings(@PathVariable String stockSymbol, Authentication auth) {
+        Long userId = Long.parseLong(auth.getPrincipal().toString());
+        Watchlist watchlist = watchlistService.getWatchlistEntry(userId, stockSymbol);
+        return new AlertSettingsResponse(watchlist.isAlertEnabled(), watchlist.getTargetPriceAbove(),
+                watchlist.getTargetPriceBelow(), watchlist.getChangeRateThresholdAbove(), watchlist.getChangeRateThresholdBelow());
+    }
+
+    @PutMapping("/{stockSymbol}/alert")
+    public ResponseEntity<ApiResponse<Void>> updateAlertSettings(@PathVariable String stockSymbol,
+            @RequestBody AlertSettingsParam param, Authentication auth) {
+        Long userId = Long.parseLong(auth.getPrincipal().toString());
+        watchlistService.updateAlertSettings(userId, stockSymbol, param.alertEnabled(), param.targetPriceAbove(),
+                param.targetPriceBelow(), param.changeRateThresholdAbove(), param.changeRateThresholdBelow());
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("알림 설정이 저장되었습니다."));
+    }
 }
 
 record WatchlistParam(String stockSymbol) {
@@ -56,4 +75,26 @@ record WatchlistParam(String stockSymbol) {
 }
 
 record WatchlistItemResponse(String symbol, String name, String market, String price, String time, String changeRate) {
+}
+
+record AlertSettingsResponse(boolean alertEnabled, Integer targetPriceAbove, Integer targetPriceBelow,
+                              BigDecimal changeRateThresholdAbove, BigDecimal changeRateThresholdBelow) {
+}
+
+record AlertSettingsParam(boolean alertEnabled, Integer targetPriceAbove, Integer targetPriceBelow,
+                           BigDecimal changeRateThresholdAbove, BigDecimal changeRateThresholdBelow) {
+    public AlertSettingsParam {
+        if (targetPriceAbove != null && targetPriceAbove <= 0) {
+            throw new IllegalArgumentException("목표가는 0보다 커야 합니다.");
+        }
+        if (targetPriceBelow != null && targetPriceBelow <= 0) {
+            throw new IllegalArgumentException("목표가는 0보다 커야 합니다.");
+        }
+        if (changeRateThresholdAbove != null && changeRateThresholdAbove.signum() <= 0) {
+            throw new IllegalArgumentException("등락률 기준은 0보다 커야 합니다.");
+        }
+        if (changeRateThresholdBelow != null && changeRateThresholdBelow.signum() <= 0) {
+            throw new IllegalArgumentException("등락률 기준은 0보다 커야 합니다.");
+        }
+    }
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -58,5 +59,19 @@ public class WatchlistService {
         if (!watchlistRepository.existsByStockSymbol(stockSymbol)) {
             kisWebSocketClient.unsubscribe(stockSymbol);
         }
+    }
+
+    public Watchlist getWatchlistEntry(Long userId, String stockSymbol) {
+        return watchlistRepository.findByUserIdAndStockSymbol(userId, stockSymbol)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "관심종목에 먼저 추가해주세요."));
+    }
+
+    @Transactional
+    public void updateAlertSettings(Long userId, String stockSymbol, boolean alertEnabled,
+            Integer targetPriceAbove, Integer targetPriceBelow,
+            BigDecimal changeRateThresholdAbove, BigDecimal changeRateThresholdBelow) {
+        Watchlist watchlist = getWatchlistEntry(userId, stockSymbol);
+        watchlist.updateAlertSettings(alertEnabled, targetPriceAbove, targetPriceBelow,
+                changeRateThresholdAbove, changeRateThresholdBelow);
     }
 }
