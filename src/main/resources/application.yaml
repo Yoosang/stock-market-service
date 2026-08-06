@@ -26,6 +26,10 @@ app:
     # 로컬(http, same-site)은 Secure=false/SameSite=Lax, 배포(https, cross-site)는 true/None
     cookie-secure: ${COOKIE_SECURE:false}
     cookie-same-site: ${COOKIE_SAME_SITE:Lax}
+    # 배포 환경에서 Next.js 서버 컴포넌트(app.finflow.pe.kr)가 next/headers cookies()로 이
+    # 쿠키를 읽으려면 api/app 서브도메인이 공유하는 상위 도메인(.finflow.pe.kr)을 지정해야 한다.
+    # 로컬은 비워두면(host-only) 충분하다.
+    cookie-domain: ${COOKIE_DOMAIN:}
   news:
     naver:
       client-id: ${NAVER_CLIENT_ID}

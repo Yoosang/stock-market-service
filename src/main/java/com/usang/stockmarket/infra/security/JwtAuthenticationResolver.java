@@ -30,6 +30,14 @@ public class JwtAuthenticationResolver {
     @Value("${app.jwt.cookie-same-site}")
     private String cookieSameSite;
 
+    // app.finflow.pe.kr(Vercel)의 서버 컴포넌트가 next/headers cookies()로 이 쿠키를 읽으려면,
+    // 브라우저가 app.finflow.pe.kr로 가는 요청에도 쿠키를 실어야 한다. Domain을 지정하지 않으면
+    // 쿠키를 발급한 호스트(api.finflow.pe.kr)에만 실리는 host-only 쿠키가 되어 app 서브도메인에는
+    // 절대 전달되지 않는다. 로컬 개발(둘 다 localhost, 포트만 다름)에서는 이 속성이 없어도 우연히
+    // 공유되어 문제가 드러나지 않았다.
+    @Value("${app.jwt.cookie-domain:}")
+    private String cookieDomain;
+
     public String extractTokenFromCookies(Cookie[] cookies) {
         if (cookies == null) {
             return null;
@@ -55,6 +63,7 @@ public class JwtAuthenticationResolver {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
+                .domain(cookieDomain.isBlank() ? null : cookieDomain)
                 .path("/")
                 .maxAge(Duration.ofMillis(jwtTokenProvider.getExpirationMs()))
                 .build();
@@ -65,6 +74,7 @@ public class JwtAuthenticationResolver {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
+                .domain(cookieDomain.isBlank() ? null : cookieDomain)
                 .path("/")
                 .maxAge(0)
                 .build();
