@@ -1,5 +1,7 @@
 package com.usang.stockmarket.infra.kis;
 
+import com.usang.stockmarket.application.alert.AlertService;
+import com.usang.stockmarket.application.quote.CandleService;
 import com.usang.stockmarket.application.quote.QuoteCache;
 import com.usang.stockmarket.domain.watchlist.Watchlist;
 import com.usang.stockmarket.domain.watchlist.WatchlistRepository;
@@ -64,7 +66,8 @@ class KisWebSocketConnectivityTest {
         QuoteCache quoteCache = new QuoteCache(redisTemplate);
 
         KisWebSocketClient client = new KisWebSocketClient(
-                authClient, config, new ObjectMapper(), fakeWatchlistRepository, fakeMessagingTemplate, quoteCache);
+                authClient, config, new ObjectMapper(), fakeWatchlistRepository, fakeMessagingTemplate, quoteCache,
+                mock(CandleService.class), mock(AlertService.class));
         client.connect();
 
         // client.connect()는 비동기로 연결되므로, 콘솔에 SUBSCRIBE SUCCESS/체결가 로그가
