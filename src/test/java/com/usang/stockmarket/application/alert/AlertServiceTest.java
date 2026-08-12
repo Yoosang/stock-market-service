@@ -73,7 +73,7 @@ class AlertServiceTest {
         alertService.checkAndFire(new QuoteUpdate("005930", "70000", "090300", "1.5"));
 
         assertFalse(watchlist.isAlertEnabled());
-        verify(telegramNotifier, timeout(500)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500)).sendAsync(anyString());
     }
 
     @Test
@@ -85,7 +85,7 @@ class AlertServiceTest {
         alertService.checkAndFire(new QuoteUpdate("005930", "59000", "090300", "-1.5"));
 
         assertFalse(watchlist.isAlertEnabled());
-        verify(telegramNotifier, timeout(500)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500)).sendAsync(anyString());
     }
 
     @Test
@@ -97,7 +97,7 @@ class AlertServiceTest {
         alertService.checkAndFire(new QuoteUpdate("005930", "70000", "090300", "5.5"));
 
         assertFalse(watchlist.isAlertEnabled());
-        verify(telegramNotifier, timeout(500)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500)).sendAsync(anyString());
     }
 
     @Test
@@ -110,7 +110,7 @@ class AlertServiceTest {
         alertService.checkAndFire(new QuoteUpdate("005930", "65000", "090300", "-5.5"));
 
         assertFalse(watchlist.isAlertEnabled());
-        verify(telegramNotifier, timeout(500)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500)).sendAsync(anyString());
     }
 
     @Test
@@ -133,7 +133,7 @@ class AlertServiceTest {
         alertService.checkAndFire(new QuoteUpdate("005930", "70000", "090300", null));
 
         assertFalse(watchlist.isAlertEnabled());
-        verify(telegramNotifier, timeout(500)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500)).sendAsync(anyString());
     }
 
     @Test
@@ -147,7 +147,7 @@ class AlertServiceTest {
 
         assertFalse(hit.isAlertEnabled());
         assertTrue(miss.isAlertEnabled());
-        verify(telegramNotifier, timeout(500).times(1)).sendMessage(anyString());
+        verify(telegramNotifier, timeout(500).times(1)).sendAsync(anyString());
     }
 
     @Test

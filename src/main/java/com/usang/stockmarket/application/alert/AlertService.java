@@ -13,8 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
@@ -24,7 +22,6 @@ public class AlertService {
     private final WatchlistRepository watchlistRepository;
     private final StockRepository stockRepository;
     private final TelegramNotifier telegramNotifier;
-    private final ExecutorService telegramExecutor = Executors.newSingleThreadExecutor();
 
     @Transactional
     public void checkAndFire(QuoteUpdate quote) {
@@ -64,9 +61,7 @@ public class AlertService {
 
         String stockName = stockRepository.findBySymbol(symbol).map(Stock::getName).orElse(symbol);
         String message = buildMessage(stockName, symbol, price, changeRate);
-
-        // KIS 틱 처리 스레드를 텔레그램 API 지연으로 블로킹하지 않기 위해 별도 스레드로 전송한다.
-        telegramExecutor.submit(() -> telegramNotifier.sendMessage(message));
+        telegramNotifier.sendAsync(message);
     }
 
     private String buildMessage(String stockName, String symbol, BigDecimal price, BigDecimal changeRate) {

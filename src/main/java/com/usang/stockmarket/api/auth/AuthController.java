@@ -3,6 +3,8 @@ package com.usang.stockmarket.api.auth;
 import com.usang.stockmarket.api.dto.ApiResponse;
 import com.usang.stockmarket.application.auth.AuthService;
 import com.usang.stockmarket.infra.security.JwtAuthenticationResolver;
+import com.usang.stockmarket.infra.telegram.TelegramNotifier;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -19,10 +22,19 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final AuthService authService;
     private final JwtAuthenticationResolver jwtAuthenticationResolver;
+    private final TelegramNotifier telegramNotifier;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginParamDto loginParamDto) {
-        String token = authService.login(loginParamDto.email(), loginParamDto.password());
+    public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginParamDto loginParamDto, HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        String token;
+        try {
+            token = authService.login(loginParamDto.email(), loginParamDto.password());
+        } catch (ResponseStatusException e) {
+            telegramNotifier.sendAsync("[로그인 실패 시도] %s (IP: %s)".formatted(loginParamDto.email(), ip));
+            throw e;
+        }
+        telegramNotifier.sendAsync("[로그인 성공] %s (IP: %s)".formatted(loginParamDto.email(), ip));
         ResponseCookie cookie = jwtAuthenticationResolver.buildAuthCookie(token);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
