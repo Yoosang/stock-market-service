@@ -2,7 +2,9 @@ package com.usang.stockmarket.api.auth;
 
 import com.usang.stockmarket.api.dto.ApiResponse;
 import com.usang.stockmarket.application.auth.AuthService;
+import com.usang.stockmarket.application.auth.LoginFailedException;
 import com.usang.stockmarket.infra.security.JwtAuthenticationResolver;
+import com.usang.stockmarket.infra.security.LoginRateLimiter;
 import com.usang.stockmarket.infra.telegram.TelegramNotifier;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -23,18 +25,32 @@ public class AuthController {
     private final AuthService authService;
     private final JwtAuthenticationResolver jwtAuthenticationResolver;
     private final TelegramNotifier telegramNotifier;
+    private final LoginRateLimiter loginRateLimiter;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(@RequestBody LoginParamDto loginParamDto, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<?>> login(@RequestBody LoginParamDto loginParamDto, HttpServletRequest request) {
         String ip = request.getRemoteAddr();
+        String email = loginParamDto.email();
         String token;
         try {
-            token = authService.login(loginParamDto.email(), loginParamDto.password());
+            loginRateLimiter.assertNotBlocked(ip);
+            token = authService.login(email, loginParamDto.password());
+        } catch (LoginFailedException e) {
+            loginRateLimiter.recordFailure(ip);
+            telegramNotifier.sendAsync("[로그인 실패 시도] %s (IP: %s)".formatted(email, ip));
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(ApiResponse.fail(e.getReason(), e.getRemainingAttempts()));
         } catch (ResponseStatusException e) {
-            telegramNotifier.sendAsync("[로그인 실패 시도] %s (IP: %s)".formatted(loginParamDto.email(), ip));
+            if (e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                telegramNotifier.sendAsync("[로그인 차단 - 반복 실패] %s (IP: %s)".formatted(email, ip));
+            } else {
+                loginRateLimiter.recordFailure(ip);
+                telegramNotifier.sendAsync("[로그인 실패 시도] %s (IP: %s)".formatted(email, ip));
+            }
             throw e;
         }
-        telegramNotifier.sendAsync("[로그인 성공] %s (IP: %s)".formatted(loginParamDto.email(), ip));
+        loginRateLimiter.recordSuccess(ip);
+        telegramNotifier.sendAsync("[로그인 성공] %s (IP: %s)".formatted(email, ip));
         ResponseCookie cookie = jwtAuthenticationResolver.buildAuthCookie(token);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())

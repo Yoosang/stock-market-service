@@ -3,6 +3,7 @@ package com.usang.stockmarket.application.auth;
 import com.usang.stockmarket.domain.user.User;
 import com.usang.stockmarket.domain.user.UserRepository;
 import com.usang.stockmarket.infra.security.JwtTokenProvider;
+import com.usang.stockmarket.infra.security.LoginRateLimitConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -15,7 +16,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -33,7 +36,8 @@ class AuthServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider);
+        LoginRateLimitConfiguration rateLimitConfiguration = new LoginRateLimitConfiguration(3, 20, 900);
+        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider, rateLimitConfiguration);
     }
 
     @Test
@@ -93,5 +97,63 @@ class AuthServiceTest {
         String token = authService.login("test@test.com", "rawPassword");
 
         assertEquals("issued-jwt-token", token);
+    }
+
+    @Test
+    void 비밀번호_실패가_한도에_도달하면_계정이_잠긴다() {
+        User user = new User("test@test.com", "encodedPassword");
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
+
+        for (int i = 0; i < 3; i++) {
+            assertThrows(ResponseStatusException.class, () -> authService.login("test@test.com", "wrongPassword"));
+        }
+
+        assertTrue(user.isLocked());
+    }
+
+    @Test
+    void 잠긴_계정은_비밀번호가_맞아도_로그인을_거부한다() {
+        User user = new User("test@test.com", "encodedPassword");
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
+
+        for (int i = 0; i < 3; i++) {
+            assertThrows(ResponseStatusException.class, () -> authService.login("test@test.com", "wrongPassword"));
+        }
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> authService.login("test@test.com", "rawPassword"));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, exception.getStatusCode());
+        verify(jwtTokenProvider, never()).generateToken(any());
+    }
+
+    @Test
+    void 로그인_성공시_실패_횟수가_초기화된다() {
+        User user = new User("test@test.com", "encodedPassword");
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
+        when(passwordEncoder.matches("rawPassword", "encodedPassword")).thenReturn(true);
+        when(jwtTokenProvider.generateToken(user.getId())).thenReturn("issued-jwt-token");
+
+        assertThrows(ResponseStatusException.class, () -> authService.login("test@test.com", "wrongPassword"));
+
+        authService.login("test@test.com", "rawPassword");
+
+        assertEquals(0, user.getFailedLoginCount());
+        assertFalse(user.isLocked());
+    }
+
+    @Test
+    void 비밀번호가_틀리면_남은_시도_횟수를_함께_반환한다() {
+        User user = new User("test@test.com", "encodedPassword");
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
+
+        LoginFailedException exception = assertThrows(LoginFailedException.class,
+                () -> authService.login("test@test.com", "wrongPassword"));
+
+        assertEquals(2, exception.getRemainingAttempts());
     }
 }
