@@ -2,6 +2,8 @@ package com.usang.stockmarket.application.auth;
 
 import com.usang.stockmarket.domain.user.User;
 import com.usang.stockmarket.domain.user.UserRepository;
+import com.usang.stockmarket.infra.mail.VerificationMailSender;
+import com.usang.stockmarket.infra.security.EmailVerificationTokenStore;
 import com.usang.stockmarket.infra.security.JwtTokenProvider;
 import com.usang.stockmarket.infra.security.LoginRateLimitConfiguration;
 import org.junit.jupiter.api.Test;
@@ -31,13 +33,18 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+    @Mock
+    private EmailVerificationTokenStore emailVerificationTokenStore;
+    @Mock
+    private VerificationMailSender verificationMailSender;
 
     private AuthService authService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         LoginRateLimitConfiguration rateLimitConfiguration = new LoginRateLimitConfiguration(3, 20, 900);
-        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider, rateLimitConfiguration);
+        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider, rateLimitConfiguration,
+                emailVerificationTokenStore, verificationMailSender);
     }
 
     @Test
@@ -52,8 +59,21 @@ class AuthServiceTest {
     }
 
     @Test
+    void 이메일_인증이_안_됐으면_회원가입시_예외를_던진다() {
+        when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
+        when(emailVerificationTokenStore.consumeVerified("new@test.com")).thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> authService.signup("new@test.com", "rawPassword"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     void 회원가입_성공시_비밀번호를_인코딩하여_저장한다() {
         when(userRepository.findByEmail("new@test.com")).thenReturn(Optional.empty());
+        when(emailVerificationTokenStore.consumeVerified("new@test.com")).thenReturn(true);
         when(passwordEncoder.encode("rawPassword")).thenReturn("encodedPassword");
 
         authService.signup("new@test.com", "rawPassword");
@@ -62,6 +82,46 @@ class AuthServiceTest {
         verify(userRepository).save(captor.capture());
         assertEquals("new@test.com", captor.getValue().getEmail());
         assertEquals("encodedPassword", captor.getValue().getPasswordHash());
+    }
+
+    @Test
+    void 인증메일_발송시_인증번호를_전송한다() {
+        when(emailVerificationTokenStore.issue("new@test.com")).thenReturn("123456");
+
+        authService.generateEmailVerificationNum("new@test.com");
+
+        verify(verificationMailSender).send("new@test.com", "123456");
+    }
+
+    @Test
+    void 인증번호가_없거나_만료됐으면_이메일_인증에_실패한다() {
+        when(emailVerificationTokenStore.consume("test@test.com")).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> authService.verifyEmail("123456", "test@test.com"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void 인증번호가_일치하지_않으면_이메일_인증에_실패한다() {
+        when(emailVerificationTokenStore.consume("test@test.com")).thenReturn(Optional.of("111111"));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> authService.verifyEmail("222222", "test@test.com"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verify(emailVerificationTokenStore, never()).markVerified(any());
+    }
+
+    @Test
+    void 인증번호가_일치하면_인증_완료로_표시한다() {
+        when(emailVerificationTokenStore.consume("test@test.com")).thenReturn(Optional.of("123456"));
+
+        authService.verifyEmail("123456", "test@test.com");
+
+        verify(emailVerificationTokenStore).invalidate("test@test.com");
+        verify(emailVerificationTokenStore).markVerified("test@test.com");
     }
 
     @Test

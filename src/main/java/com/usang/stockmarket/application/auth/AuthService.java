@@ -2,6 +2,8 @@ package com.usang.stockmarket.application.auth;
 
 import com.usang.stockmarket.domain.user.User;
 import com.usang.stockmarket.domain.user.UserRepository;
+import com.usang.stockmarket.infra.mail.VerificationMailSender;
+import com.usang.stockmarket.infra.security.EmailVerificationTokenStore;
 import com.usang.stockmarket.infra.security.JwtTokenProvider;
 import com.usang.stockmarket.infra.security.LoginRateLimitConfiguration;
 import lombok.RequiredArgsConstructor;
@@ -23,13 +25,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginRateLimitConfiguration loginRateLimitConfiguration;
+    private final EmailVerificationTokenStore emailVerificationTokenStore;
+    private final VerificationMailSender verificationMailSender;
 
     public void signup(String email, String password) {
-        if(userRepository.findByEmail(email).isPresent()) {
+        if(isExistEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다.");
+        }
+        if(!emailVerificationTokenStore.consumeVerified(email)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다.");
         }
         User user = new User(email, passwordEncoder.encode(password));
         userRepository.save(user);
+    }
+
+    public boolean isExistEmail(String email) {
+        return userRepository.findByEmail(email).isPresent();
     }
 
     @Transactional
@@ -51,7 +62,23 @@ public class AuthService {
         }
 
         user.resetLoginFailure();
+
         return jwtTokenProvider.generateToken(user.getId());
+    }
+
+    public void generateEmailVerificationNum(String email) {
+        String token = emailVerificationTokenStore.issue(email);
+        verificationMailSender.send(email, token);
+    }
+
+    public void verifyEmail(String userToken, String email) {
+        String authToken = emailVerificationTokenStore.consume(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 인증번호입니다."));
+        if(!userToken.equals(authToken)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않습니다.");
+        }
+        emailVerificationTokenStore.invalidate(email);
+        emailVerificationTokenStore.markVerified(email);
     }
 
 }

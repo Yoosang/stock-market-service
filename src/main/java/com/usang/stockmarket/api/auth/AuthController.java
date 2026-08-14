@@ -6,6 +6,7 @@ import com.usang.stockmarket.application.auth.LoginFailedException;
 import com.usang.stockmarket.infra.security.JwtAuthenticationResolver;
 import com.usang.stockmarket.infra.security.LoginRateLimiter;
 import com.usang.stockmarket.infra.telegram.TelegramNotifier;
+import com.usang.stockmarket.util.FormatUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +77,25 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("회원가입이 완료되었습니다."));
     }
 
+    @PostMapping("/send-verify-email")
+    public ResponseEntity<ApiResponse<Void>> sendEmail(@RequestBody SendVerificationParamDto sendVerificationParamDto) {
+        String email = sendVerificationParamDto.email();
+        if(!FormatUtil.isValidEmail(email)){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이메일 형식이 올바르지 않습니다.");
+        }
+        if(authService.isExistEmail(email)){
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
+        }
+        authService.generateEmailVerificationNum(email);
+        return ResponseEntity.ok(ApiResponse.success("인증 메일이 발송되었습니다."));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestBody ConfirmVerificationParamDto confirmVerificationParamDto) {
+        authService.verifyEmail(confirmVerificationParamDto.token(), confirmVerificationParamDto.email());
+        return ResponseEntity.ok(ApiResponse.success("이메일 인증이 완료되었습니다."));
+    }
+
 }
 
 record LoginParamDto (String email, String password) {
@@ -96,6 +116,25 @@ record SignupParamDto (String email, String password) {
         }
         if(!StringUtils.hasText(password)) {
             throw new IllegalArgumentException("비밀번호를 입력해주세요.");
+        }
+    }
+}
+
+record SendVerificationParamDto (String email) {
+    public SendVerificationParamDto {
+        if(!StringUtils.hasText(email)) {
+            throw new IllegalArgumentException("이메일을 입력해 주세요.");
+        }
+    }
+}
+
+record ConfirmVerificationParamDto (String email, String token) {
+    public ConfirmVerificationParamDto {
+        if(!StringUtils.hasText(email)) {
+            throw new IllegalArgumentException("이메일을 입력해 주세요.");
+        }
+        if(!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException("인증번호를 입력해 주세요.");
         }
     }
 }
