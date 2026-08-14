@@ -117,6 +117,9 @@ record SignupParamDto (String email, String password) {
         if(!StringUtils.hasText(password)) {
             throw new IllegalArgumentException("비밀번호를 입력해주세요.");
         }
+        if(!password.matches("^(?=.*[A-Za-z])(?=.*\\d).{8,}$")) {
+            throw new IllegalArgumentException("비밀번호는 8자 이상이며 영문과 숫자를 포함해야 합니다.");
+        }
     }
 }
 
